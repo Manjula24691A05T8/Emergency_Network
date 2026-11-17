@@ -1,15 +1,11 @@
 .venv/
 venv/
+target/
+.idea/
+*.iml
 __pycache__/
 *.py[cod]
 
 .env
 .env.*
 !.env.example
-
-.streamlit/secrets.toml
-.streamlit/credentials.toml
-
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
