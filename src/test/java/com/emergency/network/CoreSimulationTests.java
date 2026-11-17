@@ -54,6 +54,17 @@ class CoreSimulationTests {
     }
 
     @Test
+    void slidingWindowAcknowledgesPacketsInBoundedBatches() {
+        ReliableTransmissionService.SlidingWindowResult result =
+                new ReliableTransmissionService().simulateSlidingWindow(5, 2);
+
+        assertEquals(5, result.totalAcknowledged());
+        assertEquals(List.of(1, 2), result.batches().get(0).transmitted());
+        assertEquals(List.of(3, 4), result.batches().get(1).acknowledged());
+        assertEquals(List.of(5), result.batches().get(2).transmitted());
+    }
+
+    @Test
     void leakyBucketReportsFiniteBufferDrops() {
         LeakyBucketService.Result result = new LeakyBucketService().simulate(
                 List.of(2, 5, 0),
@@ -143,11 +154,27 @@ class CoreSimulationTests {
         mockMvc.perform(post("/api/congestion")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"arrivals":"2,5,0","capacity":3,"outputRate":1}
+                                {"arrivals":"2,5,0","capacity":3,"outputRate":1,
+                                 "router":"router_a","failedLinks":[],"failedNodes":[]}
                                 """))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.router").value("router_a"))
                 .andExpect(jsonPath("$.result.totalDropped").value(3))
                 .andExpect(jsonPath("$.result.congestionStatus").value("Congested"));
+    }
+
+    @Test
+    void congestionSimulationRejectsFailedRouter() throws Exception {
+        mockMvc.perform(post("/api/congestion")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"arrivals":"2,5,0","capacity":3,"outputRate":1,
+                                 "router":"router_a","failedLinks":[],
+                                 "failedNodes":["router_a"]}
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(
+                        "Select an active router for congestion simulation."));
     }
 
     @Test
@@ -243,7 +270,8 @@ class CoreSimulationTests {
         mockMvc.perform(post("/api/congestion")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"arrivals":"1,,2","capacity":4,"outputRate":1}
+                                {"arrivals":"1,,2","capacity":4,"outputRate":1,
+                                 "router":"router_a","failedLinks":[],"failedNodes":[]}
                                 """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").isNotEmpty());

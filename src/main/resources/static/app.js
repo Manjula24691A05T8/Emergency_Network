@@ -245,7 +245,12 @@ function renderTopology() {
     fillSelect("message-destination", services, "ambulance_service");
     fillSelect("reliable-source", services, "police_station");
     fillSelect("reliable-destination", services, "ambulance_service");
-    fillSelect("congestion-router", routers.filter(router => getNode(router.id)?.status === "active"));
+    const activeRouters = routers.filter(router => getNode(router.id)?.status === "active");
+    fillSelect("congestion-router", activeRouters);
+    document.querySelector("#congestion-form button").disabled = activeRouters.length === 0;
+    document.getElementById("congestion-router-status").textContent = activeRouters.length
+        ? "Congestion simulations require an active router."
+        : "Congestion simulation is unavailable until a router is restored.";
     fillSelect("packet-source", allNodes, "police_station");
     fillSelect("packet-destination", allNodes, "ambulance_service");
 
@@ -553,13 +558,16 @@ document.getElementById("congestion-form").addEventListener("submit", async even
         const data = await api("/api/congestion", {
             arrivals: document.getElementById("bucket-arrivals").value,
             capacity: Number(document.getElementById("bucket-capacity").value),
-            outputRate: Number(document.getElementById("bucket-rate").value)
+            outputRate: Number(document.getElementById("bucket-rate").value),
+            router: document.getElementById("congestion-router").value,
+            failedLinks: state.failedLinks,
+            failedNodes: state.failedNodes
         });
         const peakTick = data.result.steps.reduce((peak, step) =>
             step.queuedBeforeLeak > data.result.steps[peak - 1].queuedBeforeLeak ? step.tick : peak, 1);
         state.latestBucket = {
             ...data,
-            router: document.getElementById("congestion-router").value,
+            router: data.router,
             selectedTick: peakTick
         };
         save("latestBucket", state.latestBucket);

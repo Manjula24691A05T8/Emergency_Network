@@ -2,10 +2,22 @@
 venv/
 target/
 .idea/
+.vscode/
+.settings/
 *.iml
+.classpath
+.project
+*.log
+logs/
+log/
+*.tmp
+*.swp
+*.hprof
 __pycache__/
 *.py[cod]
 
 .env
 .env.*
 !.env.example
+.DS_Store
+Thumbs.db

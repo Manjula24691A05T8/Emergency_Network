@@ -189,11 +189,17 @@ public class SimulationController {
 
     @PostMapping("/congestion")
     public CongestionResponse congestion(@RequestBody CongestionRequest request) {
+        NetworkTopology.Topology topology = buildTopology(request.failedLinks(), request.failedNodes());
+        NetworkTopology.Node router = topology.node(request.router());
+        if (router == null || !NetworkTopology.ROUTER_NODES.contains(router.id())
+                || router.status() != NetworkTopology.Status.ACTIVE) {
+            throw new IllegalArgumentException("Select an active router for congestion simulation.");
+        }
         LeakyBucketService.Result result = leakyBucketService.simulate(
                 leakyBucketService.parseArrivals(request.arrivals()),
                 request.capacity(),
                 request.outputRate());
-        return new CongestionResponse(toView(result));
+        return new CongestionResponse(toView(result), router.id());
     }
 
     @PostMapping("/congestion/compare")
@@ -421,7 +427,13 @@ public class SimulationController {
             List<List<String>> failedLinks,
             List<String> failedNodes) {}
 
-    public record CongestionRequest(String arrivals, int capacity, int outputRate) {}
+    public record CongestionRequest(
+            String arrivals,
+            int capacity,
+            int outputRate,
+            String router,
+            List<List<String>> failedLinks,
+            List<String> failedNodes) {}
 
     public record ProfileRequest(String arrivals, int capacity, int normalRate, int stressRate) {}
 
@@ -522,7 +534,7 @@ public class SimulationController {
             double congestionRatePercent,
             String congestionStatus) {}
 
-    public record CongestionResponse(LeakyBucketResultView result) {}
+    public record CongestionResponse(LeakyBucketResultView result, String router) {}
 
     public record ProfileResponse(
             LeakyBucketResultView normal,
